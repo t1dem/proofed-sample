@@ -1,0 +1,43 @@
+name: Proofed
+
+on:
+  pull_request:
+
+permissions:
+  contents: write # clips go to the proofed-clips branch
+  pull-requests: write
+  issues: write
+  statuses: write
+
+concurrency:
+  group: proofed-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  kane:
+    name: Kane in Chrome
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Build and serve the app
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          (pnpm preview --port 4173 > serve.log 2>&1 &)
+          npx --yes wait-on@8 -t 60000 http://localhost:4173
+
+      - uses: t1dem/proofed@main
+        with:
+          url: http://localhost:4173
+          lt-username: ${{ secrets.LT_USERNAME }}
+          lt-access-key: ${{ secrets.LT_ACCESS_KEY }}

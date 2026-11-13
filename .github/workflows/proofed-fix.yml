@@ -1,0 +1,37 @@
+name: Proofed fix
+
+on:
+  issue_comment:
+    types: [edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+
+jobs:
+  fix:
+    name: Claude fixes, Kane checks
+    # Only when the "Fix with Claude" box in Proofed's own comment gets ticked.
+    if: >-
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '<!-- proofed -->') &&
+      contains(github.event.comment.body, '- [x] **Fix with Claude**')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: proofed-fix-${{ github.event.issue.number }}
+    steps:
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: t1dem/proofed/fix@main
+        with:
+          url: http://localhost:4173
+          install: pnpm install --frozen-lockfile
+          build: pnpm build
+          serve: pnpm preview --port 4173
+          lt-username: ${{ secrets.LT_USERNAME }}
+          lt-access-key: ${{ secrets.LT_ACCESS_KEY }}
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
